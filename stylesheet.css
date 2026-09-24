@@ -1,0 +1,76 @@
+:root {
+	--pc: #fff;
+	--pc-border: 1px solid #484850;
+	/* --pc: #ff8;
+	--pc-border: 1px solid var(--pc); */
+	--sc: #bbe;
+	--sc-border: 1px solid var(--sc);
+	--bc: #050508;
+	--pbc: #151519;
+}
+
+body {
+	background: var(--bc);
+	font-family: monospace;
+	overflow-x: hidden;
+}
+
+#spreadsheet {
+	display: grid;
+}
+
+::selection {
+  background: var(--pc);
+	color: #000;
+}
+
+::-moz-selection { /* Code for Firefox */
+  background: var(--pc);
+	color: #000;
+}
+
+input {
+	color: #ffffff;
+	/* background: var(--bc); */
+	background: #282830;
+	border: var(--pc-border);
+	outline: none;
+}
+
+/* .header:disabled {
+	color: #999;
+} */
+
+@keyframes myAnimation {
+  from {
+		bottom: 20px;
+		opacity: 1;
+	}
+  to {
+		bottom: 80px;
+		opacity: 0;
+	}
+}
+
+p.message {
+	position: absolute;
+	font-size: 20px;
+	display: grid;
+	width: 100%;
+	bottom: 20px;
+	justify-content: center;
+	/* color: #ffffff; */
+	color: #55ff55;
+	animation-name: myAnimation;
+  animation-delay: 500ms;
+  animation-timing-function: ease-out;
+  animation-duration: 2000ms;
+	animation-fill-mode: forwards;
+}
+
+/*
+input:focus {
+	border: var(--sc-border);
+	background: var(--pbc);
+}
+*/
