@@ -17,8 +17,13 @@ body {
 
 .spreadsheet {
 	display: grid;
+	grid-auto-flow: row;
 }
 
+.vertical_grid {
+	display: grid;
+	grid-auto-flow: column;
+}
 ::selection {
   background: var(--pc);
 	color: #000;

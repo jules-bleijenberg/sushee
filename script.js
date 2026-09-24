@@ -15,6 +15,7 @@ function CalculateValue(formula) {
 		let column_index = ALPHABET.indexOf(match[0]);
 		console.log(column_index, index);
 		index = index * COLUMNS + column_index;
+		let inputs = document.querySelectorAll('.cell');
 		return inputs[index].cached_value ?? inputs[index].value;
 	});
 	console.log(formula);
@@ -23,6 +24,7 @@ function CalculateValue(formula) {
 
 function UpdateValues() {
 	// keep track of current changed items
+	let inputs = document.querySelectorAll('.cell');
 	for (let i = 0; i < inputs.length; i++) {
 		if (inputs[i].formula && inputs[i] !== document.activeElement) {
 			console.log("updating formula:", i, inputs[i].formula, inputs[i].formula.slice(1));
@@ -90,28 +92,34 @@ function LoadSpreadsheets(spreadsheet_data) {
 	let spreadsheet = document.createElement('div');
 	spreadsheet.classList = 'spreadsheet';
 	spreadsheets.append(spreadsheet);
-	let left_side = document.createElement('div');
-	spreadsheet.append(left_side);
-	createInput(left_side, spreadsheet_data?.name, 'table');
+	let top_row = document.createElement('div');
+	top_row.classList = 'vertical_grid';
+	spreadsheet.append(top_row);
+	createInput(top_row, spreadsheet_data?.name, 'table');
 	console.log(spreadsheet_data);
-	for (let i = 0; i < spreadsheet_data?.cells.length / spreadsheet_data?.columns.length; i++) {
-		let header_input = createInput(left_side, (i+1).toString(), 'y');
-		header_input.disabled = true;
+	if (!spreadsheet_data?.cells || spreadsheet_data.cells.length === 0) {
+		spreadsheet_data.cells = [{},{}];
 	}
-	createInput(left_side, '', 'add row').onchange = (e) => {
-		let header_input = createInput(left_side, (i+1).toString(), 'y');
-		header_input.disabled = true;
-	};
+	if (!spreadsheet_data?.columns || spreadsheet_data.columns.length === 0) {
+		spreadsheet_data.columns = [{}];
+	}
+	console.log(spreadsheet_data);
+	for (let i = 0; i < spreadsheet_data?.columns.length; i++) {
+		createInput(top_row, ALPHABET[i], 'x');
+	}
 	// should check if length > 0
 	for (let i = 0; i < spreadsheet_data?.cells.length / spreadsheet_data?.columns.length; i++) {
-		let column = document.createElement('div');
-		createInput(column, ALPHABET[i], 'x');
-		for (let j = 0; j < spreadsheet_data?.cells.length; j += spreadsheet_data?.columns.length) {
+		let row_div = document.createElement('div');
+		row_div.classList = 'vertical_grid';
+		spreadsheet.append(row_div);
+		let header_input = createInput(row_div, (i+1).toString(), 'y');
+		header_input.disabled = true;
+		for (let j = 0; j < spreadsheet_data.columns.length; j++) {
 			// let input = createInput(column, ALPHABET[j], 'cell');
 			let input = createSpreadsheetInput();
 			input.value = spreadsheet_data.cells[i].value;
 			input.formula = spreadsheet_data.cells[i].formula;
-			column.append(input);
+			row_div.append(input);
 		}
 	}
 }
@@ -137,7 +145,7 @@ document.body.onkeydown = (event) => {
 				cells: Array.from(spreadsheet.querySelectorAll('input.cell')).map((cell) => {
 					return {
 						// cached_value: cell.cached_value ?? cell.value
-						value: input.value,
+						value: cell.value,
 						formula: cell.formula
 					}
 				})
