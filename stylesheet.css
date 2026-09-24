@@ -15,7 +15,7 @@ body {
 	overflow-x: hidden;
 }
 
-#spreadsheet {
+.spreadsheet {
 	display: grid;
 }
 

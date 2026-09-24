@@ -12,9 +12,9 @@ const COLUMNS = 5;
 function CalculateValue(formula) {
 	formula = formula.replaceAll(/[A-Z]\d+/g, (match) => {
 		let index = parseInt(match.slice(1)) - 1;
-		let row_index = ALPHABET.indexOf(match[0]);
-		console.log(row_index, index);
-		index += row_index * COLUMNS;
+		let column_index = ALPHABET.indexOf(match[0]);
+		console.log(column_index, index);
+		index = index * COLUMNS + column_index;
 		return inputs[index].cached_value ?? inputs[index].value;
 	});
 	console.log(formula);
@@ -34,6 +34,7 @@ function UpdateValues() {
 
 function createSpreadsheetInput() {
 	let input = document.createElement('input');
+	input.classList = "cell";
 	input.onchange = (e) => {
 		if (input !== document.activeElement) {
 			return;
@@ -64,10 +65,16 @@ function createSpreadsheetInput() {
 	return input;
 }
 
-function createHeaderInput() {
+function createInput(parent, value, placeholder) {
 	let input = document.createElement('input');
 	input.classList = 'header';
-	// input.tabIndex = "2";
+	if (placeholder) {
+		input.placeholder = placeholder;
+	}
+	if (value) {
+		input.value = value;
+	}
+	parent.append(input);
 	return input;
 }
 
@@ -76,31 +83,40 @@ function createHeaderInput() {
 if (localStorage.json) {
 	app = JSON.parse(localStorage.json);
 }
-let spreadsheet = document.body.querySelector('#spreadsheet');
-spreadsheet.style.gridTemplateColumns = `repeat(${COLUMNS+1}, 1fr)`;
-let title_input = createHeaderInput();
-title_input.placeholder = 'table';
-title_input.value = app[0].name;
-spreadsheet.append(title_input);
-for (let i = 0; i < COLUMNS; i++) {
-	let input = createHeaderInput();
-	input.value = ALPHABET[i];
-	spreadsheet.append(input);
-}
-for (let i = 0; i < app[0].cells.length; i++) {
-	if (i % COLUMNS === 0) {
-		let header_input = createHeaderInput();
+let spreadsheets = document.body.querySelector('#spreadsheets');
+spreadsheets.style.gridTemplateColumns = `repeat(${COLUMNS+1}, 1fr)`;
+
+function LoadSpreadsheets(spreadsheet_data) {
+	let spreadsheet = document.createElement('div');
+	spreadsheet.classList = 'spreadsheet';
+	spreadsheets.append(spreadsheet);
+	let left_side = document.createElement('div');
+	spreadsheet.append(left_side);
+	createInput(left_side, spreadsheet_data?.name, 'table');
+	console.log(spreadsheet_data);
+	for (let i = 0; i < spreadsheet_data?.cells.length / spreadsheet_data?.columns.length; i++) {
+		let header_input = createInput(left_side, (i+1).toString(), 'y');
 		header_input.disabled = true;
-		header_input.value = (i/COLUMNS+1).toString();
-		spreadsheet.append(header_input);
 	}
-	let input = createSpreadsheetInput();
-	input.value = app[0].cells[i].value;
-	input.formula = app[0].cells[i].formula;
-	spreadsheet.append(input);
-	inputs.push(input);
+	createInput(left_side, '', 'add row').onchange = (e) => {
+		let header_input = createInput(left_side, (i+1).toString(), 'y');
+		header_input.disabled = true;
+	};
+	// should check if length > 0
+	for (let i = 0; i < spreadsheet_data?.cells.length / spreadsheet_data?.columns.length; i++) {
+		let column = document.createElement('div');
+		createInput(column, ALPHABET[i], 'x');
+		for (let j = 0; j < spreadsheet_data?.cells.length; j += spreadsheet_data?.columns.length) {
+			// let input = createInput(column, ALPHABET[j], 'cell');
+			let input = createSpreadsheetInput();
+			input.value = spreadsheet_data.cells[i].value;
+			input.formula = spreadsheet_data.cells[i].formula;
+			column.append(input);
+		}
+	}
 }
 
+LoadSpreadsheets(app[0]);
 
 
 
@@ -113,13 +129,20 @@ document.body.onkeydown = (event) => {
 	event.preventDefault();
 	event.stopImmediatePropagation();
 	// save data
-	const json_string = JSON.stringify(app, null, 0);
-	// const json_string = JSON.stringify(inputs.map((input) => {
-	// 	return {
-	// 		value: input.value,
-	// 		formula: input.formula
-	// 	}
-	// }), null, 0);
+	// const json_string = JSON.stringify(app, null, 0);
+	const json_string = JSON.stringify(
+		Array.from(document.body.querySelectorAll('.spreadsheet')).map((spreadsheet) => {
+			return {
+				name: "main", 
+				cells: Array.from(spreadsheet.querySelectorAll('input.cell')).map((cell) => {
+					return {
+						// cached_value: cell.cached_value ?? cell.value
+						value: input.value,
+						formula: cell.formula
+					}
+				})
+			}
+		}), null, 0);
 	console.log("Saved",json_string);
 	localStorage.json = json_string;
 	let message = document.createElement('p');
@@ -130,4 +153,3 @@ document.body.onkeydown = (event) => {
 		message.remove();
 	}, 3000);
 }
-// document.querySelectorAll('input');
