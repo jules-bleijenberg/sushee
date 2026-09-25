@@ -1,7 +1,9 @@
 let inputs = [];
 let app = [];
-const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const ALPHABET = "QWERTYUIOP";
+// const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const COLUMNS = 5;
+let Spreadsheets = document.body.querySelector('#spreadsheets');
 
 // keep track of references
 // on create -> check for recursion
@@ -34,8 +36,8 @@ function UpdateValues() {
 	}
 }
 
-function createSpreadsheetInput() {
-	let input = document.createElement('input');
+function createSpreadsheetInput(parent, value) {
+	let input = createInput(parent, value, 'cell');
 	input.classList = "cell";
 	input.onchange = (e) => {
 		if (input !== document.activeElement) {
@@ -69,7 +71,6 @@ function createSpreadsheetInput() {
 
 function createInput(parent, value, placeholder) {
 	let input = document.createElement('input');
-	input.classList = 'header';
 	if (placeholder) {
 		input.placeholder = placeholder;
 	}
@@ -85,13 +86,12 @@ function createInput(parent, value, placeholder) {
 if (localStorage.json) {
 	app = JSON.parse(localStorage.json);
 }
-let spreadsheets = document.body.querySelector('#spreadsheets');
-spreadsheets.style.gridTemplateColumns = `repeat(${COLUMNS+1}, 1fr)`;
+Spreadsheets.style.gridTemplateColumns = `repeat(${COLUMNS+1}, 1fr)`;
 
 function LoadSpreadsheets(spreadsheet_data) {
 	let spreadsheet = document.createElement('div');
 	spreadsheet.classList = 'spreadsheet';
-	spreadsheets.append(spreadsheet);
+	Spreadsheets.append(spreadsheet);
 	let top_row = document.createElement('div');
 	top_row.classList = 'vertical_grid';
 	spreadsheet.append(top_row);
@@ -116,10 +116,16 @@ function LoadSpreadsheets(spreadsheet_data) {
 		header_input.disabled = true;
 		for (let j = 0; j < spreadsheet_data.columns.length; j++) {
 			// let input = createInput(column, ALPHABET[j], 'cell');
-			let input = createSpreadsheetInput();
-			input.value = spreadsheet_data.cells[i].value;
+			let input = createSpreadsheetInput(row_div, spreadsheet_data.cells[i].value);
 			input.formula = spreadsheet_data.cells[i].formula;
 			row_div.append(input);
+		}
+	}
+	spreadsheet.addColumn = () => {
+		let rows = spreadsheet.children;
+		createInput(rows[0], ALPHABET[rows.length - 2], 'x');
+		for (let i = 1; i < rows.length; i++) {
+			createSpreadsheetInput(rows[i], '');
 		}
 	}
 }
@@ -129,6 +135,9 @@ LoadSpreadsheets(app[0]);
 
 
 
+function getChildren(element) {
+	return Array.from(element.children);
+}
 
 // data management
 document.body.onkeydown = (event) => {
@@ -139,13 +148,18 @@ document.body.onkeydown = (event) => {
 	// save data
 	// const json_string = JSON.stringify(app, null, 0);
 	const json_string = JSON.stringify(
-		Array.from(document.body.querySelectorAll('.spreadsheet')).map((spreadsheet) => {
+		getChildren(Spreadsheets).map((spreadsheet) => {
 			return {
 				name: "main", 
+				columns: Array.from(spreadsheet.querySelectorAll('input.columns')).map((column) => {
+					return {
+						formula: column.formula
+					}
+				}),
 				cells: Array.from(spreadsheet.querySelectorAll('input.cell')).map((cell) => {
 					return {
 						// cached_value: cell.cached_value ?? cell.value
-						value: cell.value,
+						value: cell.cached_value ?? cell.value,
 						formula: cell.formula
 					}
 				})
