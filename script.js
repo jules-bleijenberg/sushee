@@ -1,7 +1,10 @@
 let inputs = [];
 let app = [];
-const ALPHABET = "QWERTYUIOP";
 // const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const COLUMN_LETTERS = "PQWERTYUIO";
+// const NUMBERS = "0123456789";
+// let FORMUMLA_REGEX = new RegExp("[PQWERTYUIO]\d+", 'g');
+let FORMUMLA_REGEX = /[PQWERTYUIO]\d+/g;
 const COLUMNS = 5;
 let Spreadsheets = document.body.querySelector('#spreadsheets');
 
@@ -11,14 +14,47 @@ let Spreadsheets = document.body.querySelector('#spreadsheets');
 
 // on update -> refresh all
 
+function GetCell(x, y) {
+	// handle out of bounds
+	return Spreadsheets.children[0].children[y].children[x];
+}
+
+function GetCellByString(str) {
+	let x = COLUMN_LETTERS.indexOf(str[0]);
+	let y = parseInt(str.slice(1));
+	return GetCell(x, y);
+}
+
+function GetReferences(cell) {
+	console.log(FORMUMLA_REGEX);
+	if (!cell.formula) return [];
+	let regex_references = cell.formula.match(FORMUMLA_REGEX);
+	let references = [];
+	for (let i = 0; i < regex_references.length; i++) {
+		let reference = regex_references[i];
+		let j = 0;
+		while (j < references.length && references[j].reference !== reference) {
+			j++;
+		};
+		if (j !== references.length) continue;
+		references.push({
+			reference: reference,
+			cell: GetCellByString(reference)
+		});
+	}
+	return references;
+}
+
 function CalculateValue(formula) {
-	formula = formula.replaceAll(/[A-Z]\d+/g, (match) => {
-		let index = parseInt(match.slice(1)) - 1;
-		let column_index = ALPHABET.indexOf(match[0]);
-		console.log(column_index, index);
-		index = index * COLUMNS + column_index;
-		let inputs = document.querySelectorAll('.cell');
-		return inputs[index].cached_value ?? inputs[index].value;
+	formula = formula.replaceAll(/[PQWERTYUIO]\d+/g, (match) => {
+		let x = COLUMN_LETTERS.indexOf(match[0]);
+		let y = parseInt(match.slice(1));
+		let cell = GetCell(x, y);
+		console.log(x, y, cell);
+		return cell.cached_value ?? cell.value;
+		// index = index * COLUMNS + column_index;
+		// let inputs = document.querySelectorAll('.cell');
+		// return inputs[index].cached_value ?? inputs[index].value;
 	});
 	console.log(formula);
 	return eval(formula);
@@ -39,17 +75,46 @@ function UpdateValues() {
 function createSpreadsheetInput(parent, value) {
 	let input = createInput(parent, value, '');
 	input.classList = "cell";
+	input.update = () => {
+		if (!input.formula) {
+			if (!input.cells_to_update) return;
+			console.log('fwd update', input.cells_to_update);
+			for (let i = 0; i < input.cells_to_update.length; i++) {
+				input.cells_to_update[i].update();
+			}
+			return;
+		}
+		let formula = input.formula.slice(1).replaceAll(/[PQWERTYUIO]\d+/g, (match) => {
+			for (let i = 0; i < input.references.length; i++) {
+				if (match !== input.references[i].reference) continue;
+				return input.references[i].cell.cached_value ?? input.references[i].cell.value;
+			}
+		});
+		console.log(formula);
+		if (input === document.activeElement) {
+			input.cached_value = eval(formula);
+		} else {
+			input.cached_value = eval(formula);
+			input.value = input.cached_value;
+		}
+		if (!input.cells_to_update) return;
+		for (let i = 0; i < input.cells_to_update.length; i++) {
+			input.cells_to_update[i].update();
+		}
+	}
 	input.onchange = (e) => {
 		if (input !== document.activeElement) {
 			return;
 		}
 		if (e.target.value[0] == '=') {
 			input.formula = input.value;
-			input.cached_value = CalculateValue(e.target.value.slice(1));
+			input.update();
+			// input.cached_value = CalculateValue(e.target.value.slice(1));
 		} else if (input === document.activeElement) {
 			input.formula = undefined;
+			input.update();
 		}
-		UpdateValues();
+		// UpdateValues();
 	}
 	input.onfocus = (e) => {
 		// e.target.selectionStart = e.target.selectionEnd;
@@ -58,13 +123,19 @@ function createSpreadsheetInput(parent, value) {
 		}
 	}
 	input.onblur = (e) => {
-		if (e.target.value[0] == '=') {
-			input.formula = input.value;
-			input.cached_value = CalculateValue(e.target.value.slice(1));
-			input.value = input.cached_value;
-		} else {
+		if (e.target.value[0] !== '=') {
 			input.formula = undefined;
+			// input.cached_value = undefined;
+			return;
 		}
+		if (input.formula === input.value) {
+			input.value = input.cached_value;
+			return
+		}
+		input.formula = input.value;
+		input.update();
+		// input.cached_value = CalculateValue(e.target.value.slice(1));
+		input.value = input.cached_value;
 	}
 	return input;
 }
@@ -88,6 +159,28 @@ if (localStorage.json) {
 }
 Spreadsheets.style.gridTemplateColumns = `repeat(${COLUMNS+1}, 1fr)`;
 
+function ForEachCell(func) {
+	for (let i = 0; i < Spreadsheets.children.length; i++) {
+		for (let y = 1; y < Spreadsheets.children[i].children.length; y++) {
+			for (let x = 1; x < Spreadsheets.children[i].children[y].children.length; x++) {
+				func(Spreadsheets.children[i].children[y].children[x]);
+			}
+		}
+	}
+}
+
+function SetReferences() {
+	ForEachCell((cell) => {
+		cell.references = GetReferences(cell);
+		for (let x = 0; x < cell.references.length; x++) {
+			if (!cell.references[x].cell.cells_to_update) {
+				cell.references[x].cell.cells_to_update = [];
+			}
+			cell.references[x].cell.cells_to_update.push(cell);
+		}
+	});
+}
+
 function LoadSpreadsheets(spreadsheet_data) {
 	spreadsheet_data = ValidateData(spreadsheet_data);
 	let spreadsheet = document.createElement('div');
@@ -98,7 +191,7 @@ function LoadSpreadsheets(spreadsheet_data) {
 	spreadsheet.append(top_row);
 	createInput(top_row, spreadsheet_data?.name, 'table');
 	for (let i = 0; i < spreadsheet_data?.columns.length; i++) {
-		createInput(top_row, ALPHABET[i], 'x');
+		createInput(top_row, COLUMN_LETTERS[i + 1], 'x');
 	}
 	for (let i = 0; i < spreadsheet_data.cells.length / spreadsheet_data.columns.length; i++) {
 		let row_div = document.createElement('div');
@@ -107,7 +200,6 @@ function LoadSpreadsheets(spreadsheet_data) {
 		let header_input = createInput(row_div, (i+1).toString(), 'y');
 		header_input.disabled = true;
 		for (let j = 0; j < spreadsheet_data.columns.length; j++) {
-			// let input = createInput(column, ALPHABET[j], 'cell');
 			let cell_index = i * spreadsheet_data.columns.length + j;
 			let input = createSpreadsheetInput(row_div, spreadsheet_data.cells[cell_index].value);
 			input.formula = spreadsheet_data.cells[cell_index].formula;
@@ -127,8 +219,8 @@ function LoadSpreadsheets(spreadsheet_data) {
 	}
 	spreadsheet.addColumn = () => {
 		let rows = spreadsheet.children;
-		let column_length = top_row.children.length - 1;
-		createInput(top_row, ALPHABET[column_length], 'x');
+		let next_collumn_index = top_row.children.length;
+		createInput(top_row, COLUMN_LETTERS[next_collumn_index], 'x');
 		for (let i = 1; i < rows.length; i++) {
 			createSpreadsheetInput(rows[i], '');
 		}
@@ -155,7 +247,13 @@ function ValidateData(spreadsheet_data) {
 }
 
 LoadSpreadsheets(app[0]);
-
+SetReferences();
+ForEachCell((cell) => {
+	console.log(cell);
+	cell.update();
+});
+// setTimeout(() => {
+// }, 100);
 
 
 
