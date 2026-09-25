@@ -37,7 +37,7 @@ function UpdateValues() {
 }
 
 function createSpreadsheetInput(parent, value) {
-	let input = createInput(parent, value, 'cell');
+	let input = createInput(parent, value, '');
 	input.classList = "cell";
 	input.onchange = (e) => {
 		if (input !== document.activeElement) {
@@ -89,6 +89,7 @@ if (localStorage.json) {
 Spreadsheets.style.gridTemplateColumns = `repeat(${COLUMNS+1}, 1fr)`;
 
 function LoadSpreadsheets(spreadsheet_data) {
+	spreadsheet_data = ValidateData(spreadsheet_data);
 	let spreadsheet = document.createElement('div');
 	spreadsheet.classList = 'spreadsheet';
 	Spreadsheets.append(spreadsheet);
@@ -96,19 +97,10 @@ function LoadSpreadsheets(spreadsheet_data) {
 	top_row.classList = 'vertical_grid';
 	spreadsheet.append(top_row);
 	createInput(top_row, spreadsheet_data?.name, 'table');
-	console.log(spreadsheet_data);
-	if (!spreadsheet_data?.cells || spreadsheet_data.cells.length === 0) {
-		spreadsheet_data.cells = [{},{}];
-	}
-	if (!spreadsheet_data?.columns || spreadsheet_data.columns.length === 0) {
-		spreadsheet_data.columns = [{}];
-	}
-	console.log(spreadsheet_data);
 	for (let i = 0; i < spreadsheet_data?.columns.length; i++) {
 		createInput(top_row, ALPHABET[i], 'x');
 	}
-	// should check if length > 0
-	for (let i = 0; i < spreadsheet_data?.cells.length / spreadsheet_data?.columns.length; i++) {
+	for (let i = 0; i < spreadsheet_data.cells.length / spreadsheet_data.columns.length; i++) {
 		let row_div = document.createElement('div');
 		row_div.classList = 'vertical_grid';
 		spreadsheet.append(row_div);
@@ -116,18 +108,50 @@ function LoadSpreadsheets(spreadsheet_data) {
 		header_input.disabled = true;
 		for (let j = 0; j < spreadsheet_data.columns.length; j++) {
 			// let input = createInput(column, ALPHABET[j], 'cell');
-			let input = createSpreadsheetInput(row_div, spreadsheet_data.cells[i].value);
-			input.formula = spreadsheet_data.cells[i].formula;
+			let cell_index = i * spreadsheet_data.columns.length + j;
+			let input = createSpreadsheetInput(row_div, spreadsheet_data.cells[cell_index].value);
+			input.formula = spreadsheet_data.cells[cell_index].formula;
 			row_div.append(input);
+		}
+	}
+	spreadsheet.addRow = () => {
+		let row_div = document.createElement('div');
+		row_div.classList = 'vertical_grid';
+		let header_input = createInput(row_div, spreadsheet.children.length.toString(), 'y');
+		spreadsheet.append(row_div);
+		header_input.disabled = true;
+		console.log(top_row.children.length);
+		for (let i = 0; i < top_row.children.length - 1; i++) {
+			createSpreadsheetInput(row_div, '');
 		}
 	}
 	spreadsheet.addColumn = () => {
 		let rows = spreadsheet.children;
-		createInput(rows[0], ALPHABET[rows.length - 2], 'x');
+		let column_length = top_row.children.length - 1;
+		createInput(top_row, ALPHABET[column_length], 'x');
 		for (let i = 1; i < rows.length; i++) {
 			createSpreadsheetInput(rows[i], '');
 		}
 	}
+}
+
+function ValidateData(spreadsheet_data) {
+	console.log(spreadsheet_data);
+	if (!spreadsheet_data) {
+		spreadsheet_data = {
+			cells: [{}],
+			columns: [{}]
+		}
+		return spreadsheet_data;
+	}
+	if (!spreadsheet_data?.cells || spreadsheet_data.cells.length === 0) {
+		spreadsheet_data.cells = [{}];
+	}
+	if (!spreadsheet_data?.columns || spreadsheet_data.columns.length === 0) {
+		spreadsheet_data.columns = [{}];
+	}
+	return spreadsheet_data;
+	console.log(spreadsheet_data);
 }
 
 LoadSpreadsheets(app[0]);
@@ -139,19 +163,36 @@ function getChildren(element) {
 	return Array.from(element.children);
 }
 
+function getChildrenSkipFirst(element) {
+	return getChildren(element).slice(1);
+}
+
 // data management
 document.body.onkeydown = (event) => {
-	if (event.key != "s") return;
 	if (event.ctrlKey == false) return;
+	if (event.key !== 'u' && event.key !== 'i' && event.key !== 's') return;
 	event.preventDefault();
 	event.stopImmediatePropagation();
+	if (event.key === 'u' || event.key === 'i') {
+		if (!document.activeElement) return;
+		let spreadsheet = document.activeElement.parentElement.parentElement;
+		if (!spreadsheet.addColumn) return;
+		if (event.key === 'i') {
+			spreadsheet.addColumn();
+		}
+		if (event.key === 'u') {
+			spreadsheet.addRow();
+		}
+	}
+	if (event.key != 's') return;
 	// save data
 	// const json_string = JSON.stringify(app, null, 0);
 	const json_string = JSON.stringify(
 		getChildren(Spreadsheets).map((spreadsheet) => {
+			let rows = getChildren(spreadsheet);
 			return {
-				name: "main", 
-				columns: Array.from(spreadsheet.querySelectorAll('input.columns')).map((column) => {
+				name: rows[0].children[0].value, 
+				columns: getChildrenSkipFirst(rows[0]).map((column) => {
 					return {
 						formula: column.formula
 					}
