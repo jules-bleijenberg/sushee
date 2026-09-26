@@ -2,9 +2,10 @@ let inputs = [];
 let app = [];
 // const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const COLUMN_LETTERS = "PQWERTYUIO";
+const TABLE_LETTERS = "pqwertyuio";
 // const NUMBERS = "0123456789";
 // let FORMUMLA_REGEX = new RegExp("[PQWERTYUIO]\d+", 'g');
-let FORMUMLA_REGEX = /[PQWERTYUIO]\d+/g;
+let FORMUMLA_REGEX = /[pqwertyuio].[PQWERTYUIO]\d+/g;
 const COLUMNS = 5;
 let Spreadsheets = document.body.querySelector('#spreadsheets');
 
@@ -14,21 +15,24 @@ let Spreadsheets = document.body.querySelector('#spreadsheets');
 
 // on update -> refresh all
 
-function GetCell(x, y) {
+function GetCell(table_id, x, y) {
 	// handle out of bounds
-	return Spreadsheets.children[0].children[y].children[x];
+	return Spreadsheets.children[table_id].children[y].children[x];
 }
 
 function GetCellByString(str) {
-	let x = COLUMN_LETTERS.indexOf(str[0]);
-	let y = parseInt(str.slice(1));
-	return GetCell(x, y);
+	let table_id = TABLE_LETTERS.indexOf(str[0]);
+	let x = COLUMN_LETTERS.indexOf(str[2]);
+	let y = parseInt(str.slice(3));
+	return GetCell(table_id, x, y);
 }
 
 function GetReferences(cell) {
 	console.log(FORMUMLA_REGEX);
 	if (!cell.formula) return [];
 	let regex_references = cell.formula.match(FORMUMLA_REGEX);
+	if (!regex_references) return [];
+	console.log(regex_references);
 	let references = [];
 	for (let i = 0; i < regex_references.length; i++) {
 		let reference = regex_references[i];
@@ -43,33 +47,6 @@ function GetReferences(cell) {
 		});
 	}
 	return references;
-}
-
-function CalculateValue(formula) {
-	formula = formula.replaceAll(/[PQWERTYUIO]\d+/g, (match) => {
-		let x = COLUMN_LETTERS.indexOf(match[0]);
-		let y = parseInt(match.slice(1));
-		let cell = GetCell(x, y);
-		console.log(x, y, cell);
-		return cell.cached_value ?? cell.value;
-		// index = index * COLUMNS + column_index;
-		// let inputs = document.querySelectorAll('.cell');
-		// return inputs[index].cached_value ?? inputs[index].value;
-	});
-	console.log(formula);
-	return eval(formula);
-}
-
-function UpdateValues() {
-	// keep track of current changed items
-	let inputs = document.querySelectorAll('.cell');
-	for (let i = 0; i < inputs.length; i++) {
-		if (inputs[i].formula && inputs[i] !== document.activeElement) {
-			console.log("updating formula:", i, inputs[i].formula, inputs[i].formula.slice(1));
-			inputs[i].cached_value = CalculateValue(inputs[i].formula.slice(1));
-			inputs[i].value = inputs[i].cached_value;
-		}
-	}
 }
 
 function createSpreadsheetInput(parent, value) {
@@ -109,8 +86,11 @@ function createSpreadsheetInput(parent, value) {
 			}
 			return;
 		}
-		let formula = input.formula.slice(1).replaceAll(/[PQWERTYUIO]\d+/g, (match) => {
+		console.log(input.formula);
+		let formula = input.formula.slice(1).replaceAll(FORMUMLA_REGEX, (match) => {
+			console.log(input.references, match);
 			for (let i = 0; i < input.references.length; i++) {
+				console.log(input.references[i], match);
 				if (match !== input.references[i].reference) continue;
 				return input.references[i].cell.cached_value ?? input.references[i].cell.value;
 			}
@@ -134,12 +114,10 @@ function createSpreadsheetInput(parent, value) {
 			input.formula = input.value;
 			input.change_formula();
 			input.update();
-			// input.cached_value = CalculateValue(e.target.value.slice(1));
 		} else if (input === document.activeElement) {
 			input.formula = undefined;
 			input.update();
 		}
-		// UpdateValues();
 	}
 	input.onfocus = (e) => {
 		// e.target.selectionStart = e.target.selectionEnd;
@@ -160,7 +138,6 @@ function createSpreadsheetInput(parent, value) {
 		input.formula = input.value;
 		input.change_formula();
 		input.update();
-		// input.cached_value = CalculateValue(e.target.value.slice(1));
 		input.value = input.cached_value;
 	}
 	return input;
@@ -302,7 +279,7 @@ document.body.onkeydown = (event) => {
 	// save data
 	// const json_string = JSON.stringify(app, null, 0);
 	const json_string = JSON.stringify(
-		getChildren(Spreadsheets).map((spreadsheet) => {
+		getChildrenSkipFirst(Spreadsheets).map((spreadsheet) => {
 			let rows = getChildren(spreadsheet);
 			return {
 				name: rows[0].children[0].value, 
