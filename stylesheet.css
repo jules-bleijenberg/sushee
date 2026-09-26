@@ -18,6 +18,7 @@ body {
 .spreadsheet {
 	display: grid;
 	grid-auto-flow: row;
+	margin-bottom: 26px;
 }
 
 .vertical_grid {

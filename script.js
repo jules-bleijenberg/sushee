@@ -172,7 +172,7 @@ function ForEachCell(func) {
 	}
 }
 
-function LoadSpreadsheets(spreadsheet_data) {
+function LoadSpreadsheet(spreadsheet_data) {
 	spreadsheet_data = ValidateData(spreadsheet_data);
 	let spreadsheet = document.createElement('div');
 	spreadsheet.classList = 'spreadsheet';
@@ -237,7 +237,9 @@ function ValidateData(spreadsheet_data) {
 	console.log(spreadsheet_data);
 }
 
-LoadSpreadsheets(app[0]);
+for (let i = 0; i < app.length; i++) {
+	LoadSpreadsheet(app[i]);
+}
 ForEachCell((cell) => {
 	cell.setReferences();
 });
@@ -248,6 +250,10 @@ ForEachCell((cell) => {
 // setTimeout(() => {
 // }, 100);
 
+document.querySelector('#create_table').onchange = (e) => {
+	LoadSpreadsheets({name: e.target.value});
+	e.target.value = '';
+}
 
 
 function getChildren(element) {
