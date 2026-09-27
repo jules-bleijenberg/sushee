@@ -50,7 +50,7 @@ function convert_to_digit(str, numeral_system, i) {
 	}
 }
 
-function try_parse_reference(cell, i) {
+function try_parse_reference(cell, i, table_id) {
 	let start_index = i;
 	if (!TABLE_LETTERS.includes(cell.formula[i]) && !COLUMN_LETTERS.includes(cell.formula[i])) {
 		return {
@@ -59,7 +59,6 @@ function try_parse_reference(cell, i) {
 		}
 	};
 	try {
-		let table_id = 1;
 		if (TABLE_LETTERS.includes(cell.formula[i])) {
 			console.log('tablefeqwfewqf', i);
 			table = convert_to_digit(cell.formula, TABLE_LETTERS, i);
@@ -99,14 +98,14 @@ function GetReferences(cell) {
 	let references = [];
 	if (!cell.formula) return references;
 	// let regex_references = cell.formula.match(FORMUMLA_REGEX);
+	let spreadsheet = cell.parentElement.parentElement;
+	let table_id = getChildren(Spreadsheets).indexOf(spreadsheet);
 	let i = 1;
 	while (i < cell.formula.length) {
 		// todo add check for double reference of table itself
 		// example (table is p)
 		// =Q1*e.Q3+p.W2*W2
-		// let spreadsheet = cell.parentElement.parentElement;
-		// let table_id = Spreadsheets.indexOf(spreadsheet);
-		let parsed_reference = try_parse_reference(cell, i);
+		let parsed_reference = try_parse_reference(cell, i, table_id);
 		if (parsed_reference.succes) {
 			references.push({
 				reference: parsed_reference.reference,
@@ -160,8 +159,10 @@ function createSpreadsheetInput(parent, value) {
 		// make new formula string
 		let formula = "";
 		let i = 1;
+		let spreadsheet = input.parentElement.parentElement;
+		let table_id = getChildren(Spreadsheets).indexOf(spreadsheet);
 		while (i < input.formula.length) {
-			let parsed_reference = try_parse_reference(input, i);
+			let parsed_reference = try_parse_reference(input, i, table_id);
 			console.warn(input, formula, i);
 			if (parsed_reference.succes) {
 				for (let j = 0; j < input.references.length; j++) {
