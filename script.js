@@ -3,8 +3,7 @@ let app = [];
 // const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const COLUMN_LETTERS = "PQWERTYUIO";
 const TABLE_LETTERS = "pqwertyuio";
-// const NUMBERS = "0123456789";
-// let FORMUMLA_REGEX = new RegExp("[PQWERTYUIO]\d+", 'g');
+const NUMBERS = "0123456789";
 let FORMUMLA_REGEX = /[pqwertyuio].[PQWERTYUIO]\d+/g;
 const COLUMNS = 5;
 let Spreadsheets = document.body.querySelector('#spreadsheets');
@@ -27,25 +26,96 @@ function GetCellByString(str) {
 	return GetCell(table_id, x, y);
 }
 
-function GetReferences(cell) {
-	console.log(FORMUMLA_REGEX);
-	if (!cell.formula) return [];
-	let regex_references = cell.formula.match(FORMUMLA_REGEX);
-	if (!regex_references) return [];
-	console.log(regex_references);
-	let references = [];
-	for (let i = 0; i < regex_references.length; i++) {
-		let reference = regex_references[i];
-		let j = 0;
-		while (j < references.length && references[j].reference !== reference) {
-			j++;
-		};
-		if (j !== references.length) continue;
-		references.push({
-			reference: reference,
-			cell: GetCellByString(reference)
-		});
+function is_lower(c) {
+	return c >= 'a' && c <= 'z';
+}
+
+function convert_to_digit(str, numeral_system, i) {
+	let start_index = i;
+	let num = numeral_system.indexOf(str[i++]);
+	if (num < 0) {
+		throw new Error("Not in base");
 	}
+	while (i < str.length && numeral_system.includes(str[i])) {
+		let i_num = numeral_system.indexOf(str[i]);
+		if (i_num < 0) {
+			break;
+		}
+		num = num * 10 + i_num;
+		i++;
+	}
+	return {
+		num,
+		length: i - start_index
+	}
+}
+
+function try_parse_reference(cell, i) {
+	let start_index = i;
+	if (!TABLE_LETTERS.includes(cell.formula[i]) && !COLUMN_LETTERS.includes(cell.formula[i])) {
+		return {
+			succes: false,
+			len: 1
+		}
+	};
+	try {
+		let table_id = 1;
+		if (TABLE_LETTERS.includes(cell.formula[i])) {
+			console.log('tablefeqwfewqf', i);
+			table = convert_to_digit(cell.formula, TABLE_LETTERS, i);
+			i += table.length;
+			console.log('table', table);
+			if (cell.formula[i] !== '.') {
+				console.warn('.', cell.formula[i]);
+				return {
+					succes: false,
+					len: i - start_index
+				}
+			}
+			i++;
+			table_id = table.num;
+		}
+		const column = convert_to_digit(cell.formula, COLUMN_LETTERS, i);
+		i += column.length;
+		const row = convert_to_digit(cell.formula, NUMBERS, i);
+		i += row.length;
+		return {
+			succes: true,
+			reference: `${table_id}.${column.num}.${row.num}`,
+			cell: GetCell(table_id, column.num, row.num),
+			len: i - start_index
+		};
+	} catch (e) {
+		console.error(e);
+		return {
+			succes: false,
+			len: i - start_index
+		}
+	}
+}
+
+// Returns an array of references of given cell
+function GetReferences(cell) {
+	let references = [];
+	if (!cell.formula) return references;
+	// let regex_references = cell.formula.match(FORMUMLA_REGEX);
+	let i = 1;
+	while (i < cell.formula.length) {
+		// todo add check for double reference of table itself
+		// example (table is p)
+		// =Q1*e.Q3+p.W2*W2
+		// let spreadsheet = cell.parentElement.parentElement;
+		// let table_id = Spreadsheets.indexOf(spreadsheet);
+		let parsed_reference = try_parse_reference(cell, i);
+		if (parsed_reference.succes) {
+			references.push({
+				reference: parsed_reference.reference,
+				cell: parsed_reference.cell
+			});
+		}
+		i += parsed_reference.len;
+	}
+	console.log('references', cell, references);
 	return references;
 }
 
@@ -87,15 +157,39 @@ function createSpreadsheetInput(parent, value) {
 			return;
 		}
 		console.log(input.formula);
-		let formula = input.formula.slice(1).replaceAll(FORMUMLA_REGEX, (match) => {
-			console.log(input.references, match);
-			for (let i = 0; i < input.references.length; i++) {
-				console.log(input.references[i], match);
-				if (match !== input.references[i].reference) continue;
-				return input.references[i].cell.cached_value ?? input.references[i].cell.value;
+		// make new formula string
+		let formula = "";
+		let i = 1;
+		while (i < input.formula.length) {
+			let parsed_reference = try_parse_reference(input, i);
+			console.warn(input, formula, i);
+			if (parsed_reference.succes) {
+				for (let j = 0; j < input.references.length; j++) {
+					console.log(input.references[j], parsed_reference.reference);
+					if (parsed_reference.reference !== input.references[j].reference) continue;
+					let value = input.references[j].cell.cached_value ?? input.references[j].cell.value;
+					formula = formula.concat(value);
+				}
+				console.log('len', parsed_reference.len);
+				i += parsed_reference.len;
+				console.warn(input, formula, i);
+			} else {
+				let j = i + parsed_reference.len;
+				while (i < j) {
+					formula = formula.concat(input.formula[i++]);
+				}
 			}
-		});
-		console.log(formula);
+		}
+		// END
+		// let formula = input.formula.slice(1).replaceAll(FORMUMLA_REGEX, (match) => {
+		// 	console.log(input.references, match);
+		// 	for (let i = 0; i < input.references.length; i++) {
+		// 		console.log(input.references[i], match);
+		// 		if (match !== input.references[i].reference) continue;
+		// 		return input.references[i].cell.cached_value ?? input.references[i].cell.value;
+		// 	}
+		// });
+		console.log('FORMULA', formula);
 		if (input === document.activeElement) {
 			input.cached_value = eval(formula);
 		} else {
