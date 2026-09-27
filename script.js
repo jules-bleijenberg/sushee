@@ -60,12 +60,9 @@ function try_parse_reference(cell, i, table_id) {
 	};
 	try {
 		if (TABLE_LETTERS.includes(cell.formula[i])) {
-			console.log('tablefeqwfewqf', i);
 			table = convert_to_digit(cell.formula, TABLE_LETTERS, i);
 			i += table.length;
-			console.log('table', table);
 			if (cell.formula[i] !== '.') {
-				console.warn('.', cell.formula[i]);
 				return {
 					succes: false,
 					len: i - start_index
@@ -163,17 +160,13 @@ function createSpreadsheetInput(parent, value) {
 		let table_id = getChildren(Spreadsheets).indexOf(spreadsheet);
 		while (i < input.formula.length) {
 			let parsed_reference = try_parse_reference(input, i, table_id);
-			console.warn(input, formula, i);
 			if (parsed_reference.succes) {
 				for (let j = 0; j < input.references.length; j++) {
-					console.log(input.references[j], parsed_reference.reference);
 					if (parsed_reference.reference !== input.references[j].reference) continue;
 					let value = input.references[j].cell.cached_value ?? input.references[j].cell.value;
 					formula = formula.concat(value);
 				}
-				console.log('len', parsed_reference.len);
 				i += parsed_reference.len;
-				console.warn(input, formula, i);
 			} else {
 				let j = i + parsed_reference.len;
 				while (i < j) {
@@ -181,16 +174,7 @@ function createSpreadsheetInput(parent, value) {
 				}
 			}
 		}
-		// END
-		// let formula = input.formula.slice(1).replaceAll(FORMUMLA_REGEX, (match) => {
-		// 	console.log(input.references, match);
-		// 	for (let i = 0; i < input.references.length; i++) {
-		// 		console.log(input.references[i], match);
-		// 		if (match !== input.references[i].reference) continue;
-		// 		return input.references[i].cell.cached_value ?? input.references[i].cell.value;
-		// 	}
-		// });
-		console.log('FORMULA', formula);
+		console.log('FORMULA', input, formula);
 		if (input === document.activeElement) {
 			input.cached_value = eval(formula);
 		} else {
@@ -298,7 +282,6 @@ function LoadSpreadsheet(spreadsheet_data) {
 		let header_input = createInput(row_div, spreadsheet.children.length.toString(), 'y');
 		spreadsheet.append(row_div);
 		header_input.disabled = true;
-		console.log(top_row.children.length);
 		for (let i = 0; i < top_row.children.length - 1; i++) {
 			createSpreadsheetInput(row_div, '');
 		}
@@ -328,8 +311,8 @@ function ValidateData(spreadsheet_data) {
 	if (!spreadsheet_data?.columns || spreadsheet_data.columns.length === 0) {
 		spreadsheet_data.columns = [{}];
 	}
-	return spreadsheet_data;
 	console.log(spreadsheet_data);
+	return spreadsheet_data;
 }
 
 for (let i = 0; i < app.length; i++) {
@@ -339,7 +322,6 @@ ForEachCell((cell) => {
 	cell.setReferences();
 });
 ForEachCell((cell) => {
-	console.log(cell);
 	cell.update();
 });
 // setTimeout(() => {
